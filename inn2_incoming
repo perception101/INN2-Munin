@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+# Plugin to monitor inn2 status file, and report incoming traffic
+#
+# Require read permissions on the appropriate status file, and INN2 to be configured
+# to update the file at or quicker than every 5 minutes.
+#
+#
+#
+# Parameters:
+#
+#       config   (required)
+#       autoconf (optional - used by munin-config)
+#
+# Magick markers (optional):
+#%# family=auto
+#%# capabilities=autoconf
+#
+# config example for /etc/munin/plugin-conf.d/munin-node
+#[inn2_incoming]
+#user news
+#group news
+#env.logfile /var/log/news/inn_status.html
+#
+
+LOG=${logfile:-/var/log/news/inn_status}
+CATEGORY=${category:-inn2}
+
+if [ "$1" = "autoconf" ]; then
+        if [ -r "$LOG" ]; then
+                echo yes
+                exit 0
+        else
+                echo no
+                exit 1
+        fi
+fi
+
+if [ "$1" = "config" ]; then
+
+        echo 'graph_title INN2 incoming article stats'
+        echo 'graph_args --base 1000 -l 0'
+        echo 'graph_scale no'
+        echo 'graph_vlabel article count'
+        echo 'graph_category' $CATEGORY
+        echo 'graph_period minute'
+
+        echo 'offered.label Total articles offered'
+        echo 'offered.type DERIVE'
+        echo 'offered.min 0'
+        echo 'accepted.label Articles accepted'
+        echo 'accepted.type DERIVE'
+        echo 'accepted.min 0'
+        echo 'refused.label Articles refused'
+        echo 'refused.type DERIVE'
+        echo 'refused.min 0'
+        echo 'rejected.label Articles rejected'
+        echo 'rejected.type DERIVE'
+        echo 'rejected.min 0'
+        echo 'dupe.label Duplicate articles'
+        echo 'dupe.type DERIVE'
+        echo 'dupe.min 0'
+
+        exit 0
+fi
+
+awk -v RS="" '/global/ {print $0}' < $LOG | awk -v RS="" -F":" '{printf "offered.value %d\naccepted.value %d\nrefused.value %d\nrejected.value %d\ndupe.value %d\n",$5,$7,$10,$13,$16}'

@@ -1,0 +1,69 @@
+#!/bin/sh
+#
+# Plugin to monitor inn2 general system status
+#
+# Require read permissions on the appropriate status files, and INN2 to be configured
+# to update the file at or quicker than every 5 minutes.
+#
+#
+#
+# Parameters:
+#
+#       config   (required)
+#       autoconf (optional - used by munin-config)
+#
+# Magick markers (optional):
+#%# family=auto
+#%# capabilities=autoconf
+#
+# config example for /etc/munin/plugin-conf.d/munin-node
+#[inn2_incoming]
+#user news
+#group news
+#env.logfile /var/log/news/inn_status.html
+#
+
+INLOG=${inlog:-/var/log/news/inn_status.html}
+OUTLOG=${outlog:-/var/log/news/innfeed.status}
+CATEGORY=${category:-inn2}
+
+if [ "$1" = "autoconf" ]; then
+        if [ -r "$INLOG" ] && [ -r "$OUTLOG" ]; then
+                echo yes
+                exit 0
+        else
+                echo no
+                exit 1
+        fi
+fi
+
+if [ "$1" = "config" ]; then
+
+        echo 'graph_title INN2 system'
+        echo 'graph_args --base 1000 -l 0'
+        echo 'graph_scale no'
+        echo 'graph_vlabel count'
+        echo 'graph_category' $CATEGORY
+        echo 'graph_period minute'
+
+        echo 'inpeer.label Total incoming peers'
+        echo 'inpeer.type GAUGE'
+        echo 'incon.label Active incoming connections'
+        echo 'incon.type GAUGE'
+        echo 'insleep.label Sleeping incoming connections'
+        echo 'insleep.type GAUGE'
+
+        echo 'outpeer.label Total outgoing peers'
+        echo 'outpeer.type GAUGE'
+        echo 'outcon.label Active outgoing connections'
+        echo 'outcon.type GAUGE'
+        echo 'outsleep.label Sleeping outgoing connections'
+        echo 'outsleep.type GAUGE'
+        echo 'outidle.label Idle outgoing connections'
+        echo 'outidle.type GAUGE'
+
+        exit 0
+fi
+
+awk -F":" '/active-cxns/ {printf "inpeer.value %d\nincon.value %d\ninsleep.value %d\n",$2,$3,$4}' < $INLOG
+awk -F":" '/active-cxns/ {printf "outpeer.value %d\noutcon.value %d\noutsleep.value %d\noutidle.value %d\n",$2,$3,$4,$5}' < $OUTLOG
